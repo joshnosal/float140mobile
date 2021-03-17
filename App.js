@@ -1,30 +1,31 @@
-import React from 'react'
-import { StatusBar } from 'react-native'
-import { DefaultTheme, Provider as PaperProvider } from 'react-native-paper'
+import React, { useState, useEffect } from 'react'
+import { StatusBar, AppState } from 'react-native'
 import Router from './AppRouter'
+import { NativeRouter } from "react-router-native"
+import { useNetInfo } from '@react-native-community/netinfo'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 
-const theme = {
-  ...DefaultTheme,
-  roundness: 2,
-  colors: {
-    ...DefaultTheme.colors,
-    background: '#0A1128',
-    primary: 'dodgerblue',
-    white: 'white',
-    text: 'white',
-    error: '#d32f2f',
-    accent: '#f26419'
-  },
-}
 
 export default function App() {
+  const netInfo = useNetInfo()
+  const [state, setState] = useState(AppState.currentState)
+
+  useEffect(()=>{
+    const handleStateChange = (nextState) => {
+      if (state !== 'background') {}
+      console.log(nextState)
+    }
+
+    AppState.addEventListener('change', handleStateChange)
+    return () => AppState.removeEventListener('change', handleStateChange)
+  }, [])
 
   return (
-    <PaperProvider theme={theme}>
+    <NativeRouter> 
       <StatusBar barStyle="light-content"/>
-      <Router/>
-    </PaperProvider>
+      <Router internet={netInfo.isConnected || false}/>
+    </NativeRouter> 
   );
 }
 

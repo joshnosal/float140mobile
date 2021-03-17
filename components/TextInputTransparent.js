@@ -15,6 +15,7 @@ export default function FancyInput(props){
   useEffect(()=>{
     inputEl.current.blur()
   }, [props.focus])
+  
   const getStyles = () => {
     let styles = {
       color: theme.colors.white,
