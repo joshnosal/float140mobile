@@ -1,10 +1,15 @@
 import React, {useContext, useState, useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableWithoutFeedback, Animated, TouchableHighlight, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableWithoutFeedback, Platform, LayoutAnimation, TouchableOpacity, UIManager } from 'react-native'
 import { AppContext } from '../components/Context'
 import { Ionicons } from '@expo/vector-icons'
 import { colors, fontSizes, hexToRGBA } from '../styles/Theme'
 import { Switch, Link, Route, useLocation, useHistory } from 'react-router-native'
 import DrawerLayout from 'react-native-gesture-handler/DrawerLayout'
+
+// Screens
+import ClubsScreen from './clubs/Main'
+import AccountRouter from './account/Router'
+import AnalyticsRouter from './analytics/Router'
 
 const footerHeight = 50,
       drawerWidth = 200
@@ -17,6 +22,7 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     flexBasis: 'auto',
+    position: 'relative',
     // flexBasis: 40,
   },
   footer: {
@@ -64,29 +70,37 @@ export default function InAppScreen(props){
 
   const renderDrawer = () => {
     return (
-      <>
-        <TouchableOpacity activeOpacity={0.9} onPress={()=>history.push('/account/profile')}>
+      <View style={{flex: 1, borderRightColor: colors.primary, borderRightWidth: 1}}>
+        <TouchableOpacity activeOpacity={0.9} onPress={()=>{
+          drawer.current.closeDrawer()
+          history.push('/account/profile')}}>
           <View style={styles.drawerItem}>
             <Text style={location.pathname==='/account/profile' ? [styles.drawerItemText, styles.drawerItemSelected] : [styles.drawerItemText, styles.drawerItemUnselected]}>
               Profile
             </Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.1} onPress={()=>history.push('/account/research')}>
+        <TouchableOpacity activeOpacity={0.1} onPress={()=>{
+          drawer.current.closeDrawer()
+          history.push('/account/research')}}>
           <View style={styles.drawerItem}>
             <Text style={location.pathname==='/account/research' ? [styles.drawerItemText, styles.drawerItemSelected] : [styles.drawerItemText, styles.drawerItemUnselected]}>
               Research
             </Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.1} onPress={()=>history.push('/account/clubs')}>
+        <TouchableOpacity activeOpacity={0.1} onPress={()=>{
+          drawer.current.closeDrawer()
+          history.push('/account/clubs')}}>
           <View style={styles.drawerItem}>
             <Text style={location.pathname==='/account/clubs' ? [styles.drawerItemText, styles.drawerItemSelected] : [styles.drawerItemText, styles.drawerItemUnselected]}>
               Clubs
             </Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.1} onPress={()=>history.push('/account/stats')}>
+        <TouchableOpacity activeOpacity={0.1} onPress={()=>{
+          drawer.current.closeDrawer()
+          history.push('/account/stats')}}>
           <View style={styles.drawerItem}>
             <Text style={location.pathname==='/account/stats' ? [styles.drawerItemText, styles.drawerItemSelected] : [styles.drawerItemText, styles.drawerItemUnselected]}>
               Stats
@@ -107,9 +121,12 @@ export default function InAppScreen(props){
             <Ionicons name='caret-back' size={30} color={colors.white}/>
           </View>
         </TouchableOpacity>
-      </>
+      </View>
     )
   }
+
+  useEffect(()=>history.push('/analytics'), [])
+
   
 
   return(
@@ -121,20 +138,19 @@ export default function InAppScreen(props){
     drawerType="front"
     drawerBackgroundColor={colors.background}
     renderNavigationView={renderDrawer}
-    // onDrawerSlide={this.handleDrawerSlide}
   >
     <View style={styles.container}>
       <View style={styles.body}>
         <Switch>
-          <Route path='/account' >
-            <Text style={{color: 'white'}}>Account</Text>
+          <Route path='/account' children={({ match })=>(
+            <AccountRouter match={match}/>
+          )}/>            
+          <Route path='/clubs' >
+            <ClubsScreen />
           </Route>
-          <Route exact path='/' >
-            <Text style={{color: 'white'}}>Clubs</Text>
-          </Route>
-          <Route path='/analytics' >
-            <Text style={{color: 'white'}}>Analytics</Text>
-          </Route>
+          <Route path='/analytics'  children={({ match })=>(
+            <AnalyticsRouter match={match}/>
+          )}/>
           <Route path='/floats' >
             <Text style={{color: 'white'}}>Floats</Text>
           </Route>
@@ -144,21 +160,21 @@ export default function InAppScreen(props){
         </Switch>
       </View>
       <View style={styles.footer}>
-        <TouchableWithoutFeedback onPress={() => drawer.current.openDrawer()}>
-          <Ionicons name="person" size={30} color={location.pathname==='/account' ? colors.primary : colors.white}/>
-        </TouchableWithoutFeedback>
-        <Link to='/'>
-          <Ionicons name="home" size={30} color={location.pathname==='/' ? colors.primary : colors.white}></Ionicons>
+        <Link to='/clubs'>
+          <Ionicons name="home" size={30} color={location.pathname.includes('/clubs') ? colors.primary : colors.white}></Ionicons>
         </Link>
         <Link to='/analytics'>
-          <Ionicons name="analytics" size={30} color={location.pathname==='/analytics' ? colors.primary : colors.white}/>
+          <Ionicons name="analytics" size={30} color={location.pathname.includes('/analytics') ? colors.primary : colors.white}/>
         </Link>
         <Link to='/floats'>
-          <Ionicons name="pulse" size={30} color={location.pathname==='/floats' ? colors.primary : colors.white}/>
+          <Ionicons name="pulse" size={30} color={location.pathname.includes('/floats') ? colors.primary : colors.white}/>
         </Link>
         <Link to='/feed'>
-          <Ionicons name="chatbubbles" size={30} color={location.pathname==='/feed' ? colors.primary : colors.white}/>
+          <Ionicons name="chatbubbles" size={30} color={location.pathname.includes('/feed') ? colors.primary : colors.white}/>
         </Link>
+        <TouchableWithoutFeedback onPress={() => drawer.current.openDrawer()}>
+          <Ionicons name="person" size={30} color={location.pathname.includes('/account') ? colors.primary : colors.white}/>
+        </TouchableWithoutFeedback>
       </View>
     </View>
   </DrawerLayout>

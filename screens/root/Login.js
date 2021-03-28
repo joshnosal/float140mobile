@@ -8,7 +8,7 @@ import async from 'async'
 // Custom Components
 import PasswordInput from '../../components/TextInputPassword'
 import UsernameInput from '../../components/TextInputEmailandUsername'
-import Button from '../../components/Button'
+import Button from '../../components/ButtonHighlight'
 
 // Styles
 import {colors, fontSizes} from '../../styles/Theme'

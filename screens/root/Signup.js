@@ -9,7 +9,7 @@ import async from 'async'
 import PasswordInput from '../../components/TextInputPassword'
 import UsernameInput from '../../components/TextInputUsername'
 import EmailInput from '../../components/TextInputEmail'
-import Button from '../../components/Button'
+import Button from '../../components/ButtonHighlight'
 
 // Styles
 import {colors, fontSizes} from '../../styles/Theme'

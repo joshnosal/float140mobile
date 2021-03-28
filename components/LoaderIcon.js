@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, Animated, Image, StyleSheet } from 'react-native'
-import { withTheme } from 'react-native-paper'
 
 export default function LoaderBar(props){
   const [deg, setDeg] = useState(new Animated.Value(0))

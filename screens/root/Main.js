@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from 'react'
 import { Image, Text, View, Animated, StyleSheet, TouchableWithoutFeedback, TouchableHighlight } from 'react-native'
 import { AppContext } from '../../components/Context'
-import Button from '../../components/Button'
+import Button from '../../components/ButtonHighlight'
 
 // Styles
 import {colors, fontSizes} from '../../styles/Theme'

@@ -2,19 +2,23 @@ import { StyleSheet, Platform, StatusBar } from 'react-native'
 
 
 const colors = {
-  background: '#0A1128',
+  background: '#000000', //'#0A1128',
   primary: '#1e90ff',
   white: '#ffffff',
   text: '#ffffff',
   error: '#d32f2f',
   accent: '#f26419',
-  gray: '#808080'
+  gray: '#808080',
+  green: '#18bc9c'
 }
 const fontSizes = {
   lg: 22,
   md: 18,
   sm: 14,
   xs: 10,
+}
+const sizes = {
+  headerHeight: 40
 }
 
 const buttons = {}
@@ -32,7 +36,6 @@ const containers = {
   containerColFullScreen: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: 'red',
     justifyContent: 'center',
   }
 }
@@ -66,7 +69,7 @@ const hexToRGBA = (bgHex, colorHex, opacity) => {
   )
 }
 
-export {colors, fontSizes, hexToRGBA}
+export {colors, fontSizes, sizes, hexToRGBA}
 
 export default StyleSheet.create({
   ...buttons,
@@ -74,7 +77,7 @@ export default StyleSheet.create({
   ...containers,
   AndroidSafeArea: {
     flex: 1,
-    backgroundColor: '#0A1128',
+    backgroundColor: colors.background,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0
   }
 })
