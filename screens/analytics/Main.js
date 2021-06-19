@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Text, StyleSheet, View, TouchableWithoutFeedback, TouchableHighlight, LayoutAnimation, UIManager, Platform, ScrollView } from 'react-native'
-import { colors, fontSizes, sizes } from '../../styles/Theme'
+import { colors, fontSizes, hexToRGBA, sizes } from '../../styles/Theme'
 import { FontAwesome5, Ionicons } from '@expo/vector-icons'
 import { useLocation, useHistory } from 'react-router-native'
 
@@ -31,71 +31,42 @@ export default function Main(props) {
         <Text style={styles.headerText}>Analytics</Text>
       </View>
       <ScrollView style={styles.body}>
-        <View style={styles.category}>
-          <TouchableWithoutFeedback onPress={toggleCore}>
-            <View style={styles.categoryHeader}>
-              <Ionicons name={coreOpen ? 'caret-up' : 'caret-down'} color={colors.white} size={20}/>
-              <Text style={styles.categoryHeaderText}>Core</Text>
-            </View>
-          </TouchableWithoutFeedback>
-          <View style={coreOpen ? [styles.categoryBody] : [styles.categoryBody, {height: 0}]}>
-          {coreOpen ? (
-            <>
-            <TouchableHighlight underlayColor={colors.primary} activeOpacity={0.8} onPress={navigateTo('crypto')} style={styles.buttonContainer}>
-              <View style={styles.button}>
-                <FontAwesome5 name='coins' color={colors.white} size={20} style={styles.buttonIcon}/>
-                <Text style={styles.buttonLabel}>Crypto</Text>
-              </View>
-            </TouchableHighlight>
-            <TouchableHighlight underlayColor={colors.primary} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
-              <View style={styles.button}>
-                <Ionicons name='analytics' color={colors.white} size={20} style={styles.buttonIcon}/>
-                <Text style={styles.buttonLabel}>Stocks</Text>
-              </View>
-            </TouchableHighlight>
-            <TouchableHighlight underlayColor={colors.primary} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
-              <View style={styles.button}>
-                <FontAwesome5 name='building' color={colors.white} size={20} style={styles.buttonIcon}/>
-                <Text style={styles.buttonLabel}>Companies</Text>
-              </View>
-            </TouchableHighlight>
-            <TouchableHighlight underlayColor={colors.primary} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
-              <View style={styles.button}>
-                <FontAwesome5 name='dollar-sign' color={colors.white} size={20} style={styles.buttonIcon}/>
-                <Text style={styles.buttonLabel}>Hedge Funds</Text>
-              </View>
-            </TouchableHighlight>
-            <TouchableHighlight underlayColor={colors.primary} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
-              <View style={styles.button}>
-                <FontAwesome5 name='newspaper' color={colors.white} size={20} style={styles.buttonIcon}/>
-                <Text style={styles.buttonLabel}>News</Text>
-              </View>
-            </TouchableHighlight>
-            <TouchableHighlight underlayColor={colors.primary} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
-              <View style={styles.button}>
-                <FontAwesome5 name='share-alt' color={colors.white} size={20} style={styles.buttonIcon}/>
-                <Text style={styles.buttonLabel}>Social Media</Text>
-              </View>
-            </TouchableHighlight>
-            </>
-          ) : null}
+        <TouchableHighlight underlayColor={hexToRGBA(colors.background, colors.primary, 0.5)} activeOpacity={0.8} onPress={navigateTo('crypto')} style={styles.buttonContainer}>
+          <View style={styles.button}>
+            <FontAwesome5 name='coins' color={colors.white} size={26} style={styles.buttonIcon}/>
+            <Text style={styles.buttonLabel}>Crypto</Text>
           </View>
-        </View>
-        <View style={styles.category}>
-          <TouchableWithoutFeedback onPress={toggleUserData}>
-            <View style={styles.categoryHeader}>
-              <Ionicons name={userDataOpen ? 'caret-up' : 'caret-down'} color={colors.white} size={20}/>
-              <Text style={styles.categoryHeaderText}>User Data</Text>
-            </View>
-          </TouchableWithoutFeedback>
-          <View style={userDataOpen ? {} : {height: 0}}>
-          {userDataOpen ? (
-            <>
-            <Text style={styles.buttonLabel}>Nothing here right now</Text>
-            </>
-          ) : null}
+        </TouchableHighlight>
+        <TouchableHighlight underlayColor={hexToRGBA(colors.background, colors.primary, 0.5)} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
+          <View style={styles.button}>
+            <Ionicons name='analytics' color={colors.white} size={26} style={styles.buttonIcon}/>
+            <Text style={styles.buttonLabel}>Stocks</Text>
           </View>
-        </View>
+        </TouchableHighlight>
+        <TouchableHighlight underlayColor={hexToRGBA(colors.background, colors.primary, 0.5)} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
+          <View style={styles.button}>
+            <FontAwesome5 name='building' color={colors.white} size={26} style={styles.buttonIcon}/>
+            <Text style={styles.buttonLabel}>Companies</Text>
+          </View>
+        </TouchableHighlight>
+        <TouchableHighlight underlayColor={hexToRGBA(colors.background, colors.primary, 0.5)} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
+          <View style={styles.button}>
+            <FontAwesome5 name='dollar-sign' color={colors.white} size={26} style={styles.buttonIcon}/>
+            <Text style={styles.buttonLabel}>Hedge Funds</Text>
+          </View>
+        </TouchableHighlight>
+        <TouchableHighlight underlayColor={hexToRGBA(colors.background, colors.primary, 0.5)} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
+          <View style={styles.button}>
+            <FontAwesome5 name='newspaper' color={colors.white} size={26} style={styles.buttonIcon}/>
+            <Text style={styles.buttonLabel}>News</Text>
+          </View>
+        </TouchableHighlight>
+        <TouchableHighlight underlayColor={hexToRGBA(colors.background, colors.primary, 0.5)} activeOpacity={0.8} onPress={()=>{}} style={styles.buttonContainer}>
+          <View style={styles.button}>
+            <FontAwesome5 name='share-alt' color={colors.white} size={26} style={styles.buttonIcon}/>
+            <Text style={styles.buttonLabel}>Social Media</Text>
+          </View>
+        </TouchableHighlight>
       </ScrollView>
     </>
   )
@@ -116,6 +87,7 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+    paddingVertical: 10
   },
   categoryHeader: {
     flexDirection: 'row',
@@ -138,28 +110,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row'
   },
   buttonContainer: {
-    borderRadius: 10, 
+    marginVertical: 5,
     marginHorizontal: 10,
-    marginTop: 10,
-    flexShrink: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: hexToRGBA(colors.background, colors.primary, 0.3)
   },
   button: {
     flexDirection: 'row',
-    borderRadius: 10,
-    // justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    // padding: 10,
-    borderWidth: 1,
-    borderColor: colors.primary
+    paddingVertical: 10
   },
   buttonLabel: {
     color: colors.white,
-    fontSize: fontSizes.md,
-    fontWeight: '500',
+    fontSize: fontSizes.xl,
+    fontWeight: '400',
   },
   buttonIcon: {
-    width: 30
+    width: 60,
+    textAlign: 'center'
   }
 })

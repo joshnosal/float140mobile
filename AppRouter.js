@@ -21,11 +21,10 @@ export default function App(props) {
   const [internet, setInternet] = useState(props.internet)
   const [loading, setLoading] = useState(true)
   const [userToken, setUserToken] = useState(null)
+  const [user, setUser] = useState(null)
   useEffect(()=>setInternet(props.internet), [props.internet])
 
   useEffect(()=>{
-    
-
     appContext.checkUser(()=>{setLoading(false)})
   }, [])
 
@@ -34,6 +33,49 @@ export default function App(props) {
     fontSizes: fontSizes,
     colors: colors,
     theme: styles,
+    user: user,
+    updateUser: async (updates, cb) => {
+
+      async.waterfall([
+        (done) => {
+          const getToken = async () =>{
+            try {
+              let token = await AsyncStorage.getItem('@userToken')
+              done(null, token)
+            } catch(e) {
+              done(e)
+            }
+          }
+          getToken()
+        },
+        (token, done) => {
+          const storeUser = async (val) => {
+            try {
+              let data = JSON.stringify(val)
+              await AsyncStorage.setItem('@userData', data)
+              done(null, val)
+            } catch(e) {
+              done(e)
+            }
+          }
+          axios.post('http://192.168.86.22:5000/user/update_user', updates, {
+            headers: {Authorization: `JWT ${token}`},
+          })
+          .then((res)=>{
+            storeUser(res.data)
+          }).catch(err=>{
+            done(err)
+          })
+        },
+        (userInfo, done) => {
+          setUser(userInfo)
+          done(null, userInfo)
+        }
+      ], (err, result)=>{
+        err ? cb(undefined) : cb(result)
+      })
+
+    },
     signIn: (username, password, remember, cb) => {
       const storeToken = async (val) => {
         try {
@@ -43,10 +85,20 @@ export default function App(props) {
           setUserToken(null)
         }
       }
+      const storeUser = async (val) => {
+        let data = JSON.stringify(val)
+        try {
+          await AsyncStorage.setItem('@userData', data)
+          setUser(val)
+        } catch(e) {
+          setUser(null)
+        }
+      }
       axios.post('https://cryptic-castle-23141.herokuapp.com/user/login', {login: username, password: password, remember: remember})
       .then(res=>{
         if (res.data.token) {
           storeToken(res.data.token)
+          storeUser(res.data.user)
         } else {
           cb(res.data)
         }
@@ -59,6 +111,7 @@ export default function App(props) {
       axios.get('/user/logout').then().catch(err=>console.log('logout error', err))
       console.log('made it here')
       AsyncStorage.removeItem('@userToken')
+      AsyncStorage.removeItem('@userData')
       setUserToken(null)
     },
     signUp: (email, username, password, confirmation, cb) => {
@@ -85,17 +138,31 @@ export default function App(props) {
           checkLocal()
         },
         (token, done)=>{
-          axios.get('https://cryptic-castle-23141.herokuapp.com/user/check', {
+          const storeUser = async (val) => {
+            try {
+              let data = JSON.stringify(val)
+              await AsyncStorage.setItem('@userData', data)
+              done(null, token, val)
+            } catch(e) {
+              done(e)
+            }
+          }
+          axios.get('http://192.168.86.22:5000/user/check', {
             headers: {Authorization: `JWT ${token}`},
           })
           .then((res)=>{
-            done(null, token)
+            storeUser(res.data)
           }).catch(err=>{
             done(err)
           })
         }
-      ], (err, token)=>{
-        err ? setUserToken(null) : !token ? setUserToken(null) : setUserToken(token)
+      ], (err, token, userData)=>{
+        if (err || !token) {
+          setUserToken(null)
+        } else {
+          setUserToken(token)
+          setUser(userData)
+        }
         cb(token)
       })
     }
@@ -104,7 +171,7 @@ export default function App(props) {
 
 
   return (
-    <SafeAreaView style={styles.AndroidSafeArea}>
+    <SafeAreaView style={[styles.AndroidSafeArea]}>
       <AppContext.Provider value={appContext}>
       {!internet ? (
         <NoInternetScreen/>

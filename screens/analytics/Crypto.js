@@ -9,34 +9,9 @@ import async from 'async'
 import TextInput from '../../components/TextInputSearch'
 import { TouchableHighlight } from 'react-native-gesture-handler'
 
-function Item({item, update, updateStats, match}){
-  const [price, setPrice] = useState()
-  const [change, setChange] = useState()
+function Item({item, match}){
   const tokenSource = axios.CancelToken.source()
   const history = useHistory()
-
-  useEffect(()=>{
-    getStats()
-    return () => tokenSource.cancel()
-  }, [update])
-
-  const getStats = () => {
-    axios.get('https://api.pro.coinbase.com/products/'+item.product+'/stats', {cancelToken: tokenSource.token})
-      .then(res=>{
-        let newPrice = Number(res.data.last),
-            newChange = Math.round(( (Number(res.data.last) - Number(res.data.open)) / Number(res.data.open)) * 10000 ) / 100 
-        setPrice(newPrice)
-        setChange(newChange)
-        updateStats(item.product, newPrice, newChange)
-      })
-      .catch(err=>{
-        if (err.response && err.response.status === 429) {
-          setTimeout(()=>{
-            getStats()
-          },500)
-        }
-      })
-  }
 
   const toDollars = (x) => {
     if (!x) return '-'
@@ -67,11 +42,11 @@ function Item({item, update, updateStats, match}){
           <Text style={styles.currencyID}>{item.currency}</Text>
           <Text style={styles.currencyName}>{item.name}</Text>
         </View>
-        <View style={{flexBasis: 1, flexGrow: 2, alignItems: 'center'}}>
-          <Text style={styles.currencyPrice}>{toDollars(price)}</Text>
+        <View style={{width: 100, alignItems: 'center'}}>
+          <Text style={styles.currencyPrice}>{toDollars(item.price)}</Text>
         </View>
-        <View style={{flexBasis: 1, flexGrow: 2, alignItems: 'center'}}>
-          <Text style={change>0 ? styles.currencyChangePos : styles.currencyChangeNeg}>{change ? change+'%' : '-'}</Text>
+        <View style={{width: 80, alignItems: 'center', justifyContent:'center'}}>
+          <Text style={item.change>0 ? styles.currencyChangePos : styles.currencyChangeNeg}>{item.change ? item.change : '-'}</Text>
         </View>
       </>
     </TouchableHighlight>
@@ -85,11 +60,11 @@ export default function Crypto(props) {
   const [search, setSearch] = useState(null)
   const [currencies, setCurrencies] = useState([])
   const [filteredCurrencies, setFilteredCurrencies] = useState([])
-  const [index, setIndex] = useState([])
-  const [stats, setStats] = useState({})
-  const [sortBy, setSortBy] = useState('name')
-  const [sortDir, setSortDir] = useState('asc')
-  const [update, setUpdate] = useState(false)
+  const [sort, setSort] = useState({
+    by: 'name',
+    dir: 'asc'
+  })
+  const tokenSource = axios.CancelToken.source()
 
   
   useEffect(()=>{
@@ -107,17 +82,20 @@ export default function Crypto(props) {
           .then(res=>{
             let list = []
             res.data.map((item)=>{
-              let obj = {}
               if (item.id.includes('-USD') && !item.id.includes('-USDC')) {
-                obj.product = item.id,
-                obj.currency = item.base_currency
+                let obj = {
+                  product: item.id,
+                  currency: item.base_currency,
+                  price: 0,
+                  change: 0
+                }
                 list.push(obj)
               }
             })
             done(null, list)
           }).catch(err=>done(err))
       },
-      async (products, done) => {
+      (products, done) => {
         axios.get('https://api.pro.coinbase.com/currencies')
         .then(res=>{
           done(null, products, res.data)
@@ -132,6 +110,27 @@ export default function Crypto(props) {
           }
         }
         done(null, products)
+      },
+      (products, done) => {
+        axios.get('http://192.168.86.22:5000/data/all_crypto_prices', {
+          cancelToken: tokenSource.token
+        })
+        .then(res=>{
+          for (let i=0; i<products.length; i++) {
+            for (let j=0; j<res.data.length; j++) {
+              if (res.data[j].product_id === products[i].product) {
+                products[i].price = Number(res.data[j].price)
+                products[i].change = Math.round((res.data[j].price - res.data[j].open_24h) * 100) / 100
+                break
+              }
+            }
+          }
+          done(null, products)
+        })
+        .catch(err=>{
+          done(err, products)
+          console.log(err.response)
+        })
       }
     ], (err, products)=>{
       if (err) {
@@ -139,72 +138,83 @@ export default function Crypto(props) {
         setLoading(false)
         setCurrencies([])
       } else {
-        products = stortByName(products, 'asc')
         setCurrencies(products)
         setLoading(false)
       }
     })
+
   }, [])
 
   useEffect(()=>{
-    if (!search) {
-      setFilteredCurrencies(currencies)
-    } else {
-      let array = [...currencies]
-      let result = [...currencies].filter(item => JSON.stringify(item).includes(search))
-      setFilteredCurrencies(result)
-    }
-  }, [currencies, search])
+    if (!currencies.length) return
+    const clock = setInterval(()=>{
+      let products = [...currencies]
+      axios.get('http://192.168.86.22:5000/data/all_crypto_prices', {
+        cancelToken: tokenSource.token
+      })
+      .then(res=>{
+        for (let i=0; i<products.length; i++) {
+          for (let j=0; j<res.data.length; j++) {
+            if (res.data[j].product_id === products[i].product) {
+              products[i].price = Number(res.data[j].price)
+              products[i].change = Math.round((res.data[j].price - res.data[j].open_24h) * 100) / 100
+              break
+            }
+          }
+        }
+        setCurrencies(products)
+      })
+      .catch(err=>{
+        console.log(err.response)
+      })
+    }, 1000)
 
-  const updateStats = (product, price, change) => {
-    let array = [...currencies]
-    for (let i=0; i<array.length; i++) {
-      if (array[i].product === product) {
-        array[i].price = price
-        array[i].change = change
+    return ()=> clearInterval(clock)
+
+  }, [])
+
+  useEffect(()=>{
+    if (!currencies.length) return setFilteredCurrencies([])
+
+    let products = [...currencies]
+    if (search) {
+      products = products.filter(item => JSON.stringify(item).includes(search))
+    }
+
+    if (sort.by === 'name') {
+      if (sort.dir === 'asc') {
+        products.sort((a, b)=>(a.currency > b.currency ? 1 : a.currency < b.currency ? -1 : 0))
+      } else {
+        products.sort((a, b)=>(a.currency > b.currency ? -1 : a.currency < b.currency ? 1 : 0))
+      }
+    } else if (sort.by === 'price') {
+      if (sort.dir === 'asc') {
+        products.sort((a, b)=>(a.price > b.price ? 1 : a.price < b.price ? -1 : 0))
+      } else {
+        products.sort((a, b)=>(a.price > b.price ? -1 : a.price < b.price ? 1 : 0))
+      }
+    } else if (sort.by === 'change') {
+      if (sort.dir === 'asc') {
+        products.sort((a, b)=>(a.change > b.change ? 1 : a.change < b.change ? -1 : 0))
+      } else {
+        products.sort((a, b)=>(a.change > b.change ? -1 : a.change < b.change ? 1 : 0))
       }
     }
-  }
+    setFilteredCurrencies(products)
+  }, [currencies, search, sort])
 
-
-  const stortByName = (list, curDir) => {
-    if (sortBy === 'name' && curDir === 'des') {
-      list.sort((a, b)=>(a.currency > b.currency ? -1 : a.currency < b.currency ? 1 : 0))
-      setSortDir('asc')
+  const updateSort = (type) => {
+    if (sort.by === type) {
+      sort.dir === 'asc' ? setSort({...sort, dir: 'des'}) : setSort({...sort, dir: 'asc'})
     } else {
-      list.sort((a, b)=>(a.currency > b.currency ? 1 : a.currency < b.currency ? -1 : 0))
-      setSortDir('des')
+      setSort({
+        by: type,
+        dir: 'asc'
+      })
     }
-    setSortBy('name')
-    return list
   }
 
-  const sortByPrice = (list, curDir) => {
-    if (sortBy === 'price' && curDir === 'des' ) {
-      list.sort((a, b)=>(a.price > b.price ? 1 : a.price < b.price ? -1 : 0))
-      setSortDir('asc')
-    } else {
-      list.sort((a, b)=>(a.price > b.price ? -1 : a.price < b.price ? 1 : 0))
-      setSortDir('des')
-    }
-    setSortBy('price')
-    return list
-  }
-
-  const sortByChange = (list, curDir) => {
-    if (sortBy === 'change' && curDir === 'des' ) {
-      list.sort((a, b)=>(a.change > b.change ? 1 : a.change < b.change ? -1 : 0))
-      setSortDir('asc')
-    } else {
-      list.sort((a, b)=>(a.change > b.change ? -1 : a.change < b.change ? 1 : 0))
-      setSortDir('des')
-    }
-    setSortBy('change')
-    return list
-  }
-
-
-  const renderItem = ({item}) =>(<Item item={item} update={update} updateStats={updateStats} match={props.match}/>)
+  const renderItem = ({item}) =>(<Item item={item} match={props.match}/>)
 
   return (
     <Animated.View style={[styles.container, {transform: [{translateX: pos.interpolate({
@@ -220,27 +230,24 @@ export default function Crypto(props) {
       <View style={styles.body}>
         <View style={styles.searchRow}>
           <TextInput onChangeText={(text)=>setSearch(text)}/>
-          <TouchableOpacity style={{paddingHorizontal: 10}} onPress={()=>setUpdate(!update)}>
-            <Ionicons name="refresh" color={colors.white} size={30}/>
-          </TouchableOpacity>
         </View>
         <View style={styles.tableHeaderRow}>
-          <TouchableOpacity onPress={()=>{stortByName(currencies, sortDir)}} style={{flexBasis: 1, flexGrow: 3}}>
+          <TouchableOpacity onPress={()=>{updateSort('name')}} style={{flexBasis: 1, flexGrow: 3, justifyContent: 'center'}}>
             <View style={{flexDirection: 'row', alignItems: 'center'}}>
               <Text style={[styles.tableHeaderText]}>Name</Text>
-              {sortBy==='name' ? <Ionicons name={sortDir==='asc' ? 'caret-up' : 'caret-down'} size={18} color={colors.white}/> : null }
+              {sort.by==='name' ? <Ionicons name={sort.dir==='asc' ? 'caret-up' : 'caret-down'} size={18} color={colors.white}/> : null }
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={()=>{sortByPrice(currencies, sortDir)}} style={{flexBasis: 1, flexGrow: 3}}>
-            <View style={{alignItems: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
+          <TouchableOpacity onPress={()=>{updateSort('price')}} style={{justifyContent: 'center'}}>
+            <View style={{width:100, flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
               <Text style={[styles.tableHeaderText]}>Price</Text>
-              {sortBy==='price' ? <Ionicons name={sortDir==='asc' ? 'caret-up' : 'caret-down'} size={18} color={colors.white}/> : null }
+              {sort.by==='price' ? <Ionicons name={sort.dir==='asc' ? 'caret-up' : 'caret-down'} size={18} color={colors.white}/> : null }
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={()=>{sortByChange(currencies, sortDir)}} style={{flexBasis: 1, flexGrow: 3}}>
-            <View style={{flexBasis: 1, flexGrow: 2, alignItems: 'center', flexDirection: 'row', alignItems: 'center', justifyContent: 'center'}}>
+          <TouchableOpacity onPress={()=>{updateSort('change')}} style={{justifyContent: 'center'}}>
+            <View style={{width: 80, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginRight: 10}}>
               <Text style={[styles.tableHeaderText]}>Change</Text>
-              {sortBy==='change' ? <Ionicons name={sortDir==='asc' ? 'caret-up' : 'caret-down'} size={18} color={colors.white}/> : null }
+              {sort.by==='change' ? <Ionicons name={sort.dir==='asc' ? 'caret-up' : 'caret-down'} size={18} color={colors.white}/> : null }
             </View>
           </TouchableOpacity>
         </View>
@@ -312,7 +319,7 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSizes.md,
     fontWeight: '500',
-    paddingHorizontal: 10,
+    paddingHorizontal: 5,
   },
   loadContainer: {
     flex: 1,

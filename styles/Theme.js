@@ -9,9 +9,10 @@ const colors = {
   error: '#d32f2f',
   accent: '#f26419',
   gray: '#808080',
-  green: '#18bc9c'
+  green: '#149414'
 }
 const fontSizes = {
+  xl: 26,
   lg: 22,
   md: 18,
   sm: 14,

@@ -7,9 +7,9 @@ import {Dimensions, View, ActivityIndicator, PixelRatio} from 'react-native'
 import { colors, fontSizes, sizes, hexToRGBA } from '../styles/Theme'
 import { captureRef } from 'react-native-view-shot'
 
-export default function CryptoChart(props) {
+export default function CryptoChart(props){
   const [loading, setLoading] = useState(false)
-  // const [data, setData] = useState([])
+  const [data, setData] = useState([])
   const [paths, setPaths] = useState({
     pricePath: null,
     volumeRects: [],
@@ -40,70 +40,186 @@ export default function CryptoChart(props) {
   const graphHeight = windowWidth * props.height - margins.top - margins.bottom
 
   useEffect(()=>{
-    if (props.data.length) createChart()
-  }, [props.data])
+    if (!props.details.product) return
+    getData()
+  }, [props.period, props.details])
+  useEffect(()=>{if (data.length) createChart()}, [data])
+
+  const getData = () => {
+    setLoading(true)
+    async.waterfall([
+      (done)=>{
+        let date = new Date(),
+        granularity,
+        start,
+        end = date.getTime()
+
+        if (props.period === '24h') {
+          start = date.getTime() - (1000 * 60 * 60 * 24)
+          granularity = 900
+        } else if (props.period === '7d') {
+          start = date.getTime() - (1000 * 60 * 60 * 24 * 7)
+          granularity = 3600
+        } else if (props.period === '30d') {
+          start = date.getTime() - (1000 * 60 * 60 * 24 * 30)
+          granularity = 3600
+        } else if (props.period === '1y') {
+          start = date.getTime() - (1000 * 60 * 60 * 24 * 365)
+          granularity = 86400
+        } else if (props.period === '5y') {
+          start = date.getTime() - (1000 * 60 * 60 * 24 * 365 * 5)
+          granularity = 86400
+        } else {
+          start = date.getTime() - (1000 * 60 * 60)
+          granularity = 60
+        }
+        done(null, start, end, granularity)
+      },
+      (start, end, granularity, done)=>{
+        let finished = false, int = 0, array=[]
+        async.whilst(
+          (cb)=>{cb(null, !finished)},
+          (next)=>{
+            int = end > start + granularity * 1000 * 298 ? start + granularity * 1000 * 298 : end
+            axios.get('https://api.pro.coinbase.com/products/'+props.details.product+'/candles', {
+              header: {
+                'Content-Type': 'application/json'
+              },
+              params: {
+                start: new Date(start).toISOString(),
+                end: new Date(int).toISOString(),
+                granularity: granularity
+              }
+            }).then(res=>{
+              array = array.concat(res.data)
+              if (int === end) {
+                finished = true
+                next(null, finished)
+              } else {
+                start = int + granularity * 1000
+                next(null, finished)
+              }
+            }).catch(err=>{
+              if (err.response.status === 429) {
+                setTimeout(()=>next(null, finished), 500)
+              } else { next(err) }
+            })
+          },
+          (err, result)=>{
+            done(err, array)
+          }
+        )
+
+      },
+      (data, done)=>{
+        let array = [], j=0
+        if (props.period === '1h' || props.period === '24h') {
+          for (let i=0; i<data.length; i++) {
+            array.push({
+              time: data[i][0],
+              low: data[i][1],
+              high: data[i][2],
+              open: data[i][3],
+              close: data[i][4],
+              volume: data[i][5],
+            })
+          }
+        } else if (props.period === '7d' || props.period === '30d' || props.period === '1y' || props.period === '5y') {
+          let chunk = props.period === '7d' ? 2 : props.period === '30d' ? 8 : props.period === '1y' ? 4 : 20
+          for (let i=0; i<data.length; i++) {
+            let max = i, curArrays = {
+              lows: [],
+              highs: [],
+              volumes: []
+            }
+            for (let j=i; j<i+chunk; j++) {
+              max = j
+              curArrays.lows.push(data[j][1])
+              curArrays.highs.push(data[j][2])
+              curArrays.volumes.push(data[j][5])
+              if (j+1 === data.length) j = i+chunk
+            }
+            let reducer = (a,b) => a + b
+            array.push({
+              time: data[i][0],
+              low: Math.min(...curArrays.lows),
+              high: Math.max(...curArrays.highs),
+              open: data[max][3],
+              close: data[i][4],
+              volume: curArrays.volumes.reduce(reducer),
+            })
+            i = i + chunk - 1
+          }
+        }
+        array.sort((a,b)=>( a.time < b.time ? -1 : a.time > b.time ? 1 : 0 ))
+        done(null, array)
+      },
+    ], (err, result)=>{
+      err ? setData([]) : setData(result)
+    })
+  }
 
   const createChart = () => {
     dragLine(null, null)
     let x = d3.scaleTime()
-        .domain(d3.extent(props.data, d=>(d.time)))
+        .domain(d3.extent(data, d=>(d.time)))
         .range([0, graphWidth]),
         priceY = d3.scaleLinear()
-        .domain([d3.min(props.data, d=>(d.low)), d3.max(props.data, d=>(d.high))])
+        .domain([d3.min(data, d=>(d.low)), d3.max(data, d=>(d.high))])
         .range([graphHeight*0.9, graphHeight*0.1]),
         volumeX = d3.scaleBand()
-        .domain(props.data.map(d=>(d.time)))
+        .domain(data.map(d=>(d.time)))
         .range([0, graphWidth])
         .paddingInner(0.05),
         candleX = d3.scaleBand()
-        .domain(props.data.map(d=>(d.time)))
+        .domain(data.map(d=>(d.time)))
         .range([0, graphWidth])
         .paddingInner(0.5),
         volumeY = d3.scaleLinear()
-        .domain([0, d3.max(props.data, d=>(d.volume))*3])
+        .domain([0, d3.max(data, d=>(d.volume))*3])
         .range([graphHeight, 0])
 
     let line = d3.line().x(d=>(x(d.time))).y(d=>(priceY(d.close))).curve(d3.curveCardinal)
     let area = d3.area().x(d=>(x(d.time))).y0(volumeY(0)).y1(d=>(volumeY(d.volume)))
     let array = [], candles = []
-    for (let i=0; i<props.data.length; i++) {
+    for (let i=0; i<data.length; i++) {
       array.push({
-        x: volumeX(props.data[i].time),
-        y: volumeY(props.data[i].volume),
+        x: volumeX(data[i].time),
+        y: volumeY(data[i].volume),
         width: volumeX.bandwidth(),
-        height: graphHeight - volumeY(props.data[i].volume)
+        height: graphHeight - volumeY(data[i].volume)
       })
       candles.push({
-        up: props.data[i].close > props.data[i].open ? true : false,
-        lineX: candleX(props.data[i].time) + candleX.bandwidth() / 2,
-        lineY1: priceY(props.data[i].high),
-        lineY2: priceY(props.data[i].low),
-        recX: candleX(props.data[i].time),
-        recY: props.data[i].open > props.data[i].close ? priceY(props.data[i].open) : priceY(props.data[i].close) ,
+        up: data[i].close > data[i].open ? true : false,
+        lineX: candleX(data[i].time) + candleX.bandwidth() / 2,
+        lineY1: priceY(data[i].high),
+        lineY2: priceY(data[i].low),
+        recX: candleX(data[i].time),
+        recY: data[i].open > data[i].close ? priceY(data[i].open) : priceY(data[i].close) ,
         recWidth: candleX.bandwidth(),
-        recHeight: props.data[i].open > props.data[i].close ? priceY(props.data[i].close) - priceY(props.data[i].open) : priceY(props.data[i].open) - priceY(props.data[i].close)
+        recHeight: data[i].open > data[i].close ? priceY(data[i].close) - priceY(data[i].open) : priceY(data[i].open) - priceY(data[i].close)
       })
     }
     setPaths({
       ...paths, 
-      pricePath: line(props.data),
-      volumePath: area(props.data),
+      pricePath: line(data),
+      volumePath: area(data),
       volumeRects: array,
       candles: candles
     })
     setLoading(false)
   }
-
+  
   const dragLine = (x, y) => {
     if (touchDisabled) return
     let xScale = d3.scaleTime()
-        .domain(d3.extent(props.data, d=>(d.time)))
+        .domain(d3.extent(data, d=>(d.time)))
         .range([0, graphWidth]),
         priceY = d3.scaleLinear()
-        .domain([d3.min(props.data, d=>(d.low)), d3.max(props.data, d=>(d.high))])
+        .domain([d3.min(data, d=>(d.low)), d3.max(data, d=>(d.high))])
         .range([graphHeight*0.9, graphHeight*0.1]),
         volumeY = d3.scaleLinear()
-        .domain([0, d3.max(props.data, d=>(d.volume))*3])
+        .domain([0, d3.max(data, d=>(d.volume))*3])
         .range([graphHeight, 0])
 
     if (x < margins.left || x > margins.left+graphWidth || y < margins.top || y > margins.top + graphHeight) {
@@ -111,7 +227,7 @@ export default function CryptoChart(props) {
     } else {
       let time = xScale.invert(x)
       let bisect = d3.bisector(d=>(d.time)).center
-      let item = props.data[bisect(props.data, time)]
+      let item = data[bisect(data, time)]
       setDisplay({
         ...display, 
         userLine: x,
@@ -129,31 +245,21 @@ export default function CryptoChart(props) {
   }
 
   const toDollars = (x) => {
-    let whole, dec
-    if (x < 10) {
-      x = Math.round(x * 10000) / 10000
-      whole = Math.round(x)
-      dec = Math.round((x % 1) * 10000)
-    } else {
-      x = Math.round(x * 100) / 100
-      whole = Math.round(x)
-      dec = Math.round((x % 1) * 100)
-    }
-    return '$'+whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + '.' + dec
+    x = Math.round(x * 100) / 100
+    return '$'+x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
   }
   const withComma = (x) => {
     x = Math.round(x * 100) / 100
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
   }
+
   const getTimeArray = () => {
-    let date = props.data.length ? new Date(props.data[props.data.length-1].time * 1000) : new Date(),
+    let date = new Date(),
         mls = date.getTime(),
         array = [],
         days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
         months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-
-    
     const getTimeString = (time) => {
       date = new Date(time)
       let hr =  date.getHours() < 10 ? '0'+date.getHours() : date.getHours()
@@ -313,6 +419,35 @@ export default function CryptoChart(props) {
       </G>
     )
   }
+  const YAxisLeft = () => {
+
+    return (
+      <G>
+        {/* <Line 
+          x1={margins.left - 1} 
+          x2={margins.left - 1} 
+          y1={margins.top} 
+          y2={props.height * windowWidth-margins.bottom + 1} 
+          stroke={colors.primary} 
+          strokeWidth={0.8}
+        /> */}
+      </G>
+    )
+  }
+  const YAxisRight = () => {
+
+    return (
+      <G/>
+      // <Line 
+      //   x1={props.width * windowWidth - margins.left + 1} 
+      //   x2={props.width * windowWidth - margins.left + 1} 
+      //   y1={margins.top} 
+      //   y2={props.height * windowWidth-margins.bottom + 1} 
+      //   stroke={colors.primary} 
+      //   strokeWidth={0.8}
+      // />
+    )
+  }
 
   return (
     <View 
@@ -334,6 +469,8 @@ export default function CryptoChart(props) {
       ) : null}
       <Svg height={props.height * windowWidth} width={props.width * windowWidth} ref={(e)=>{svgRef.current = e}}>
         <XAxis/>
+        <YAxisLeft/>
+        <YAxisRight/>
         {props.graphs.candles && !loading ? <G translateX={margins.left} translateY={margins.top}>
           
         </G> : null}
